@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Cidade em Caos - Jogo completo de estratégia e gerenciamento urbano em tela única. Administre recursos, enfrente desastres e evite o colapso!">
+  <meta name="theme-color" content="#090d16">
+  <title>Cidade em Caos - Gerenciamento & Estratégia Urbana</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-container">
+    <!-- Interactive Canvas Layer -->
+    <canvas id="city-canvas"></canvas>
+
+    <!-- HUD Overlay Layer -->
+    <div class="ui-layer">
+      <!-- TOP RESOURCE BAR -->
+      <header class="hud-top">
+        <div class="brand-section">
+          <span class="brand-icon">🏙️</span>
+          <div class="brand-titles">
+            <h1>Cidade em Caos</h1>
+            <span class="city-badge">Gestão Metropolitana</span>
+          </div>
+        </div>
+
+        <!-- Real-time Resources -->
+        <div class="resources-grid">
+          <!-- Money -->
+          <div class="resource-pill" title="Dinheiro em caixa para obras e emergências">
+            <span class="res-icon">💰</span>
+            <div class="res-info">
+              <span class="res-label">Tesouro</span>
+              <span class="res-val" id="res-money">R$ 1.500</span>
+            </div>
+          </div>
+
+          <!-- Energy -->
+          <div class="resource-pill" title="Consumo / Produção de Energia (MW)">
+            <span class="res-icon">⚡</span>
+            <div class="res-info">
+              <span class="res-label">Energia</span>
+              <span class="res-val" id="res-energy">0 / 46 MW (+46)</span>
+            </div>
+          </div>
+
+          <!-- Population -->
+          <div class="resource-pill" title="Habitantes da cidade">
+            <span class="res-icon">👥</span>
+            <div class="res-info">
+              <span class="res-label">População</span>
+              <span class="res-val" id="res-pop">150 hab</span>
+            </div>
+          </div>
+
+          <!-- Satisfaction -->
+          <div class="resource-pill" title="Índice de felicidade e aprovação dos cidadãos">
+            <span class="res-icon">😊</span>
+            <div class="res-info">
+              <span class="res-label">Satisfação</span>
+              <span class="res-val" id="res-satisfaction">82%</span>
+            </div>
+          </div>
+
+          <!-- Chaos Level -->
+          <div class="resource-pill chaos-pill" title="Nível de Caos e Problemas Ativos (Perigo de Colapso aos 100%)">
+            <span class="res-icon">🚨</span>
+            <div class="res-info" style="width: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <span class="res-label">Nível de Caos</span>
+                <span class="res-val" id="res-chaos">5%</span>
+              </div>
+              <div class="chaos-bar-track">
+                <div class="chaos-bar-fill" id="chaos-meter-fill"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timer & Controls -->
+        <div class="time-and-controls">
+          <div class="timer-box">
+            <span class="timer-label">Sobrevivência</span>
+            <div class="timer-val" id="res-timer">00:00</div>
+          </div>
+
+          <div class="control-btn-group">
+            <button class="hud-btn" id="btn-speed-pause" title="Pausar Partida (Espaço)">⏸️</button>
+            <button class="hud-btn active" id="btn-speed-1x" title="Velocidade Normal 1x">▶️</button>
+            <button class="hud-btn" id="btn-speed-2x" title="Acelerar 2x">⏩</button>
+          </div>
+
+          <div class="control-btn-group">
+            <button class="hud-btn" id="btn-sound-toggle" title="Ligar/Desligar Áudio">🔊</button>
+            <button class="hud-btn" id="btn-open-help" title="Instruções e Dicas">❓</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- CENTER HUD AREA -->
+      <main class="hud-center-wrapper">
+        <!-- Floating Camera Controls -->
+        <div class="camera-controls">
+          <button class="cam-btn" id="btn-zoom-in" title="Aproximar Zoom (+)">➕</button>
+          <button class="cam-btn" id="btn-zoom-out" title="Afastar Zoom (-)">➖</button>
+          <button class="cam-btn" id="btn-center" title="Centralizar Cidade">🎯</button>
+        </div>
+
+        <!-- Floating Inspect Details Card (appears when clicking any building) -->
+        <div class="inspect-card" id="inspect-card">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Floating Crisis Resolution Dialog (in-situ modal) -->
+        <div class="crisis-modal-overlay" id="crisis-modal">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- LATERAL TOOLBAR (CONSTRUCTION & MANAGEMENT) -->
+        <aside class="hud-sidebar" id="hud-sidebar">
+          <div class="sidebar-header">
+            <h2>🏗️ Central de Obras</h2>
+          </div>
+
+          <nav class="sidebar-tabs">
+            <button class="tab-btn active" data-tab="emergency">🚨 Socorro</button>
+            <button class="tab-btn" data-tab="infra">⚡ Energia</button>
+            <button class="tab-btn" data-tab="zones">🏡 Bairros</button>
+          </nav>
+
+          <div class="build-category-container">
+            <!-- Category: Emergency -->
+            <div class="build-category active" id="cat-emergency">
+              <div class="build-card" data-building="fire_station">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🚒</span>
+                  <div class="build-card-texts">
+                    <h4>Bombeiros</h4>
+                    <p>Apaga fogos rápido</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 500</span>
+                  <span class="build-meta">-4 MW</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="hospital">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🏥</span>
+                  <div class="build-card-texts">
+                    <h4>Hospital</h4>
+                    <p>Cura surtos e feridos</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 600</span>
+                  <span class="build-meta">-6 MW</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="police">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🚓</span>
+                  <div class="build-card-texts">
+                    <h4>Polícia</h4>
+                    <p>Acidentes e tumultos</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 450</span>
+                  <span class="build-meta">-4 MW</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category: Infrastructure & Power -->
+            <div class="build-category" id="cat-infra">
+              <div class="build-card" data-building="power_wind">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🌬️</span>
+                  <div class="build-card-texts">
+                    <h4>Turbina Eólica</h4>
+                    <p>Energia limpa e rápida</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 320</span>
+                  <span class="build-meta" style="color: #22c55e;">+16 MW</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="power_solar">
+                <div class="build-card-info">
+                  <span class="build-card-icon">☀️</span>
+                  <div class="build-card-texts">
+                    <h4>Parque Solar</h4>
+                    <p>Sem poluição sonora</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 480</span>
+                  <span class="build-meta" style="color: #22c55e;">+30 MW</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="power_plant">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🏭</span>
+                  <div class="build-card-texts">
+                    <h4>Termoelétrica</h4>
+                    <p>Alta capacidade contínua</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 750</span>
+                  <span class="build-meta" style="color: #22c55e;">+70 MW</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="road">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🛣️</span>
+                  <div class="build-card-texts">
+                    <h4>Estrada Asfalto</h4>
+                    <p>Expande circulação</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 40</span>
+                  <span class="build-meta">Via</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="bus_station">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🚏</span>
+                  <div class="build-card-texts">
+                    <h4>Terminal Ônibus</h4>
+                    <p>Reduz tráfego na malha</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 280</span>
+                  <span class="build-meta">-3 MW</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category: Zones & Happiness -->
+            <div class="build-category" id="cat-zones">
+              <div class="build-card" data-building="residential_small">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🏡</span>
+                  <div class="build-card-texts">
+                    <h4>Casas Térreas</h4>
+                    <p>Atrai novos moradores</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 150</span>
+                  <span class="build-meta">+30 hab</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="residential_high">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🏢</span>
+                  <div class="build-card-texts">
+                    <h4>Condomínio</h4>
+                    <p>Alta densidade vertical</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 380</span>
+                  <span class="build-meta">+90 hab</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="commercial">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🏬</span>
+                  <div class="build-card-texts">
+                    <h4>Centro Comercial</h4>
+                    <p>Gera tributos altos</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 320</span>
+                  <span class="build-meta">+R$ 60/s</span>
+                </div>
+              </div>
+
+              <div class="build-card" data-building="park">
+                <div class="build-card-info">
+                  <span class="build-card-icon">🌳</span>
+                  <div class="build-card-texts">
+                    <h4>Parque & Lago</h4>
+                    <p>Felicidade e ar limpo</p>
+                  </div>
+                </div>
+                <div class="build-card-stats">
+                  <span class="build-cost">R$ 180</span>
+                  <span class="build-meta">+8% Sat</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Utility Tools -->
+          <div class="sidebar-tools">
+            <button class="tool-btn build-card" data-building="demolish" title="Clique em uma construção para demoli-la">
+              <span>🚜</span>
+              <span>Demolir Lote</span>
+            </button>
+          </div>
+        </aside>
+      </main>
+
+      <!-- BOTTOM TICKER ("JORNAL DA CIDADE") -->
+      <footer class="hud-bottom">
+        <div class="ticker-badge">
+          <span class="ticker-pulse"></span>
+          <span>Plantão da Cidade</span>
+        </div>
+        <div class="ticker-content" id="news-ticker-list">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </footer>
+    </div>
+
+    <!-- OVERLAY: CIDADE EM COLAPSO (GAME OVER) -->
+    <div class="game-over-modal" id="game-over-modal">
+      <div class="game-over-card">
+        <span class="go-badge">🚨</span>
+        <h2>Cidade em Colapso</h2>
+        <p class="go-reason" id="go-reason">O nível de caos atingiu 100% e a cidade perdeu o controle dos serviços essenciais!</p>
+
+        <div class="go-stats-grid">
+          <div class="go-stat-box">
+            <span class="go-stat-label">⏱️ Sobrevivido</span>
+            <span class="go-stat-val" id="go-time">03:45</span>
+          </div>
+          <div class="go-stat-box">
+            <span class="go-stat-label">👥 População Máx</span>
+            <span class="go-stat-val" id="go-pop">320</span>
+          </div>
+          <div class="go-stat-box">
+            <span class="go-stat-label">💰 Dinheiro Movimentado</span>
+            <span class="go-stat-val" id="go-money">R$ 4.250</span>
+          </div>
+          <div class="go-stat-box">
+            <span class="go-stat-label">🏆 Crises Resolvidas</span>
+            <span class="go-stat-val" id="go-crises">14</span>
+          </div>
+        </div>
+
+        <div class="go-rank-box">
+          Avaliação de Mandato: <span id="go-rank">Gestor de Crise Resiliente ⭐</span>
+        </div>
+
+        <button class="btn-restart" id="btn-restart">RECOMEÇAR CIDADE</button>
+      </div>
+    </div>
+
+    <!-- HELP / TUTORIAL MODAL -->
+    <div class="help-modal" id="help-modal">
+      <div class="help-card">
+        <div class="help-header">
+          <h3>📖 Guia do Prefeito - Como Jogar</h3>
+        </div>
+        <div class="help-content">
+          <div class="help-item">
+            <span class="help-item-icon">🚨</span>
+            <div>
+              <b>Crises e Desastres:</b> A cada poucos segundos surgem incêndios, apagões, colisões e surtos médicos. Clique no <b>ícone flutuante</b> ou no botão <b>"IR ATÉ"</b> no rodapé para agir antes que o tempo esgote!
+            </div>
+          </div>
+          <div class="help-item">
+            <span class="help-item-icon">⚡</span>
+            <div>
+              <b>Energia e Serviços:</b> Mantenha a produção de energia positiva com usinas eólicas e solares. Cidades sem luz entram em greve e sofrem apagões frequentes.
+            </div>
+          </div>
+          <div class="help-item">
+            <span class="help-item-icon">🚦</span>
+            <div>
+              <b>Trânsito e Semáforos:</b> Carros navegam pelas ruas. Clique nos semáforos dos cruzamentos para alternar o sinal verde e liberar engarrafamentos.
+            </div>
+          </div>
+          <div class="help-item">
+            <span class="help-item-icon">🏗️</span>
+            <div>
+              <b>Expansão Urbana:</b> Construa novas residências e centros comerciais para arrecadar mais impostos. Construa parques para manter a aprovação alta!
+            </div>
+          </div>
+          <div class="help-item">
+            <span class="help-item-icon">🖱️</span>
+            <div>
+              <b>Controles:</b> Clique e arraste o mouse ou a tela para mover a câmera. Use a roda do mouse ou os botões ➕ / ➖ para dar zoom.
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary" id="btn-dismiss-help">Entendido, assumir o cargo!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/city.js"></script>
+  <script src="js/crises.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
